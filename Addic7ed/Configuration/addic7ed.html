@@ -1,0 +1,31 @@
+﻿<div id="addic7edConfigurationPage" data-role="page" class="page type-interior libraryFileOrganizerLogPage pluginConfigurationPage fullWidthContent" data-helpurl="https://github.com/MediaBrowser/Wiki/wiki/Subtitles" data-controller="__plugin/addic7edjs">
+
+    <div>
+        <div class="content-primary">
+            <form>
+                <div style="height:0; overflow: hidden;"><input type="text" name="fakeusernameremembered" tabindex="-1" /><input type="password" name="fakepasswordremembered" tabindex="-1" /></div>
+
+                <div style="display: none;">
+                    <input type="text" id="PreventChromeAutocomplete" name="PreventChromeAutocomplete" autocomplete="address-level4" />
+                </div>
+
+                <br />
+                <div class="inputContainer">
+                    <input is="emby-input" type="text" id="txtAddic7edUsername" autocomplete="off" label="Addic7ed Username" />
+                    <div class="fieldDescription">
+                        <a is="emby-linkbutton" class="button-link" target="_blank" href="http://www.addic7ed.com/">${ButtonRegister}</a>
+                    </div>
+                </div>
+
+                <div class="inputContainer">
+                    <input is="emby-input" type="password" id="txtAddic7edPassword" autocomplete="off" label="${Addic7ed Password}" />
+                </div> 
+                
+                <div>
+                    <button is="emby-button" type="submit" class="raised button-submit block"><span>${ButtonSave}</span></button>
+                </div>
+                <div class="fieldDescription">${SubtitleDownloadInstructions}</div>
+            </form>
+        </div>
+    </div>
+</div>
