@@ -12,21 +12,6 @@ namespace Addic7ed
         }
     }
 
-    public class SubtitleConfigurationFactory : IConfigurationFactory
-    {
-        public IEnumerable<ConfigurationStore> GetConfigurations()
-        {
-            return new ConfigurationStore[]
-            {
-                new ConfigurationStore
-                {
-                    Key = "subtitles",
-                    ConfigurationType = typeof (SubtitleOptions)
-                }
-            };
-        }
-    }
-
     public class Addic7edConfigurationFactory : IConfigurationFactory
     {
         public IEnumerable<ConfigurationStore> GetConfigurations()
