@@ -385,6 +385,10 @@ namespace Addic7ed
         public async Task<IEnumerable<RemoteSubtitleInfo>> Search(SubtitleSearchRequest request, CancellationToken cancellationToken)
         {
             await Login(cancellationToken).ConfigureAwait(false);
+            if (request.IsForced.HasValue)
+            {
+                return Array.Empty<RemoteSubtitleInfo>();
+            }
             if (request.ContentType.Equals(VideoContentType.Episode))
             {
                 return await SearchEpisode(request, cancellationToken).ConfigureAwait(false);
