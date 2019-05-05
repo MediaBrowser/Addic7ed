@@ -106,7 +106,7 @@ namespace Addic7ed
         {
             if (language != null)
             {
-                var culture = _localizationManager.FindLanguageInfo(language);
+                var culture = _localizationManager.FindLanguageInfo(language.AsSpan());
                 if (culture != null)
                 {
                     return culture.ThreeLetterISOLanguageName;
