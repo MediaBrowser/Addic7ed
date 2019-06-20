@@ -221,7 +221,6 @@ namespace Addic7ed
             {
                 var showPattern = "<option value=\"(\\d+)\" >(.*?)</option>";
                 var showMatches = GetMatches(res.Content, showPattern);
-                _logger.Debug($"show matches:{showMatches.Count}");
                 foreach (Match show in showMatches)
                 {
                     if (!shows.ContainsKey(show.Groups[2].Value))
