@@ -282,7 +282,7 @@ namespace Addic7ed
 
         private async Task<Dictionary<string, string>> GetMovies(string name, CancellationToken cancellationToken)
         {
-            var res = await GetResponse($"/search.php?search={name}&Submit=Search", cancellationToken).ConfigureAwait(false);
+            var res = await GetResponse($"/srch.php?search={name}&Submit=Search", cancellationToken).ConfigureAwait(false);
 
             var aPattern = "<a href=\"movie/(\\d+)\" debug=\"\\d+\">(.*?)</a><";
             var aMatches = GetMatches(res.Content, aPattern);
