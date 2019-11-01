@@ -36,8 +36,9 @@ namespace Addic7ed
 
         private readonly string _baseUrl = "https://www.addic7ed.com";
         private DateTimeOffset _lastLogin;
+        private readonly ILocalizationManager _localizationManager;
 
-        public Addic7edDownloader(ILogger logger, IHttpClient httpClient, IServerConfigurationManager config, IEncryptionManager encryption, IJsonSerializer json, IFileSystem fileSystem)
+        public Addic7edDownloader(ILogger logger, IHttpClient httpClient, IServerConfigurationManager config, IEncryptionManager encryption, IJsonSerializer json, IFileSystem fileSystem, ILocalizationManager localizationManager)
         {
             _logger = logger;
             _httpClient = httpClient;
@@ -45,7 +46,7 @@ namespace Addic7ed
             _encryption = encryption;
             _json = json;
             _fileSystem = fileSystem;
-
+            _localizationManager = localizationManager;
             _config.NamedConfigurationUpdating += _config_NamedConfigurationUpdating;
         }
 
@@ -103,11 +104,13 @@ namespace Addic7ed
 
         private string NormalizeLanguage(string language)
         {
-            var allCultures = CultureInfo.GetCultures(CultureTypes.AllCultures);
-            var culture = allCultures.FirstOrDefault(c => c.DisplayName.Contains(language));
-            if (culture != null)
+            if (language != null)
             {
-                return culture.ThreeLetterISOLanguageName;
+                var culture = _localizationManager.FindLanguageInfo(language.AsSpan());
+                if (culture != null)
+                {
+                    return culture.ThreeLetterISOLanguageName;
+                }
             }
 
             return language;
@@ -115,29 +118,33 @@ namespace Addic7ed
 
         private MatchCollection GetMatches(Stream stream, string pattern)
         {
-            var reader = new StreamReader(stream);
-            var text = reader.ReadToEnd().Replace("\n", "").Replace("\t", "");
-            return Regex.Matches(HttpUtility.HtmlDecode(text), pattern);
+            using (var reader = new StreamReader(stream))
+            {
+                var text = reader.ReadToEnd().Replace("\n", "").Replace("\t", "");
+                return Regex.Matches(HttpUtility.HtmlDecode(text), pattern);
+            }
         }
 
         private List<MatchCollection> GetMatches(Stream stream, string[] patterns)
         {
-            var reader = new StreamReader(stream);
-            var text = reader.ReadToEnd().Replace("\n", "").Replace("\t", "");
-
-            var matches = new List<MatchCollection>();
-            foreach (var pattern in patterns)
+            using (var reader = new StreamReader(stream))
             {
-                matches.Add(Regex.Matches(HttpUtility.HtmlDecode(text), pattern));
+                var text = reader.ReadToEnd().Replace("\n", "").Replace("\t", "");
+
+                var matches = new List<MatchCollection>();
+                foreach (var pattern in patterns)
+                {
+                    matches.Add(Regex.Matches(HttpUtility.HtmlDecode(text), pattern));
+                }
+                return matches;
             }
-            return matches;
         }
 
         private async Task<HttpResponseInfo> GetResponse(string url, CancellationToken cancellationToken)
         {
             var res = await _httpClient.GetResponse(new HttpRequestOptions
             {
-                Url = $"{_baseUrl}{url}",
+                Url = $"{_baseUrl}/{url}",
                 CancellationToken = cancellationToken,
                 Referer = _baseUrl
             }).ConfigureAwait(false);
@@ -177,30 +184,34 @@ namespace Addic7ed
 
             var formUrlEncodedContent = new FormUrlEncodedContent(contentData);
             var requestContentBytes = await formUrlEncodedContent.ReadAsByteArrayAsync().ConfigureAwait(false);
-            var res = await _httpClient.Post(new HttpRequestOptions
+            using (var res = await _httpClient.Post(new HttpRequestOptions
             {
                 Url = _baseUrl + "/dologin.php",
                 RequestContentType = "application/x-www-form-urlencoded",
                 RequestContentBytes = requestContentBytes,
                 CancellationToken = cancellationToken,
                 Referer = _baseUrl
-            }).ConfigureAwait(false);
-
-            if (res.StatusCode == HttpStatusCode.OK)
+            }).ConfigureAwait(false))
             {
-                var reader = new StreamReader(res.Content);
-                var content = reader.ReadToEnd();
-                if (content.Contains("User <b></b> doesn't exist"))
+
+                if (res.StatusCode == HttpStatusCode.OK)
                 {
-                    _logger.Debug("User doesn't exist");
-                    return;
+                    using (var reader = new StreamReader(res.Content))
+                    {
+                        var content = reader.ReadToEnd();
+                        if (content.Contains("User <b></b> doesn't exist"))
+                        {
+                            _logger.Debug("User doesn't exist");
+                            return;
+                        }
+                        if (content.Contains("Wrong password"))
+                        {
+                            _logger.Debug("Wrong password");
+                            return;
+                        }
+                        _logger.Debug($"{username} Logged in");
+                    }
                 }
-                if (content.Contains("Wrong password"))
-                {
-                    _logger.Debug("Wrong password");
-                    return;
-                }
-                _logger.Debug($"{username} Logged in");
             }
 
             _lastLogin = DateTimeOffset.UtcNow;
@@ -215,22 +226,24 @@ namespace Addic7ed
         private async Task<Dictionary<string, string>> GetShows(CancellationToken cancellationToken)
         {
             var shows = new Dictionary<string, string>();
-            var res = await GetResponse("/ajax_getShows.php", cancellationToken).ConfigureAwait(false);
-
-            if (res.StatusCode == HttpStatusCode.OK)
+            using (var res = await GetResponse("ajax_getShows.php", cancellationToken).ConfigureAwait(false))
             {
-                var showPattern = "<option value=\"(\\d+)\" >(.*?)</option>";
-                var showMatches = GetMatches(res.Content, showPattern);
-                foreach (Match show in showMatches)
+
+                if (res.StatusCode == HttpStatusCode.OK)
                 {
-                    if (!shows.ContainsKey(show.Groups[2].Value))
+                    var showPattern = "<option value=\"(\\d+)\" >(.*?)</option>";
+                    var showMatches = GetMatches(res.Content, showPattern);
+                    foreach (Match show in showMatches)
                     {
-                        shows.Add(show.Groups[2].Value, show.Groups[1].Value);
+                        if (!shows.ContainsKey(show.Groups[2].Value))
+                        {
+                            shows.Add(show.Groups[2].Value, show.Groups[1].Value);
+                        }
                     }
                 }
-            }
 
-            return shows;
+                return shows;
+            }
         }
 
         private IEnumerable<Addic7edResult> GetEpisode(IEnumerable<Addic7edResult> episodes, int? episodeNum, string language)
@@ -260,7 +273,7 @@ namespace Addic7ed
                     HearingImpaired = tds[6].Groups[1].Value,
                     Corrected = tds[7].Groups[1].Value,
                     HD = tds[8].Groups[1].Value,
-                    Download = (Regex.Match(tds[9].Groups[1].Value, "<a href=\"(.+?)\">Download</a>")).Groups[1].Value,
+                    Download = (Regex.Match(tds[9].Groups[1].Value, "<a href=\"/(.+?)\">Download</a>")).Groups[1].Value,
                     Multi = tds[10].Groups[1].Value
                 };
                 episodes.Add(result);
@@ -275,54 +288,57 @@ namespace Addic7ed
             {
                 return new List<Addic7edResult>();
             }
-            var res = await GetResponse($"/ajax_loadShow.php?show={id}&season={season}", cancellationToken).ConfigureAwait(false);
-
-            return ParseEpisode(res);
+            using (var res = await GetResponse($"ajax_loadShow.php?show={id}&season={season}", cancellationToken).ConfigureAwait(false))
+            {
+                return ParseEpisode(res);
+            }
         }
 
         private async Task<Dictionary<string, string>> GetMovies(string name, CancellationToken cancellationToken)
         {
-            var res = await GetResponse($"/srch.php?search={name}&Submit=Search", cancellationToken).ConfigureAwait(false);
-
-            var aPattern = "<a href=\"movie/(\\d+)\" debug=\"\\d+\">(.*?)</a><";
-            var aMatches = GetMatches(res.Content, aPattern);
-            var movies = new Dictionary<string, string>();
-            foreach (Match a in aMatches)
+            using (var res = await GetResponse($"srch.php?search={name}&Submit=Search", cancellationToken).ConfigureAwait(false))
             {
-                if (!movies.ContainsKey(a.Groups[2].Value))
+                var aPattern = "<a href=\"movie/(\\d+)\" debug=\"\\d+\">(.*?)</a><";
+                var aMatches = GetMatches(res.Content, aPattern);
+                var movies = new Dictionary<string, string>();
+                foreach (Match a in aMatches)
                 {
-                    movies.Add(a.Groups[2].Value, a.Groups[1].Value);
+                    if (!movies.ContainsKey(a.Groups[2].Value))
+                    {
+                        movies.Add(a.Groups[2].Value, a.Groups[1].Value);
+                    }
                 }
-            }
 
-            return movies;
+                return movies;
+            }
         }
 
         private async Task<IEnumerable<Addic7edResult>> ParseMovie(string movie, CancellationToken cancellationToken)
         {
-            var res = await GetResponse($"/movie/{movie}", cancellationToken).ConfigureAwait(false);
-
-            var titlePattern = "<title>.*?Download (.+?) subtitles.*?</title>";
-            var verPattern = "Version (.+?),.*?MBs";
-            var langPattern = "class=\"language\">(.*?)<";
-            var downPattern = "<a class=\"buttonDownload\" href=\"(.*?)\">";
-
-            var matches = GetMatches(res.Content, new[] { verPattern, langPattern, downPattern, titlePattern });
-
-            var results = new List<Addic7edResult>();
-            for (int i = 0; i < matches.FirstOrDefault().Count; i++)
+            using (var res = await GetResponse($"movie/{movie}", cancellationToken).ConfigureAwait(false))
             {
-                var result = new Addic7edResult
-                {
-                    Version = matches[0][i].Groups[1].Value,
-                    Language = NormalizeLanguage(matches[1][i].Groups[1].Value),
-                    Download = matches[2][i].Groups[1].Value,
-                    Title = matches[3][0].Groups[1].Value
-                };
-                results.Add(result);
-            }
+                var titlePattern = "<title>.*?Download (.+?) subtitles.*?</title>";
+                var verPattern = "Version (.+?),.*?MBs";
+                var langPattern = "class=\"language\">(.*?)<";
+                var downPattern = "<a class=\"buttonDownload\" href=\"/(.*?)\">";
 
-            return results;
+                var matches = GetMatches(res.Content, new[] { verPattern, langPattern, downPattern, titlePattern });
+
+                var results = new List<Addic7edResult>();
+                for (int i = 0; i < matches.FirstOrDefault().Count; i++)
+                {
+                    var result = new Addic7edResult
+                    {
+                        Version = matches[0][i].Groups[1].Value,
+                        Language = NormalizeLanguage(matches[1][i].Groups[1].Value),
+                        Download = matches[2][i].Groups[1].Value,
+                        Title = matches[3][0].Groups[1].Value
+                    };
+                    results.Add(result);
+                }
+
+                return results;
+            }
         }
 
         private async Task<IEnumerable<Addic7edResult>> GetMovie(string name, int? productionYear, string language, CancellationToken cancellationToken)
@@ -362,7 +378,7 @@ namespace Addic7ed
 
                 return episode.Select(i => new RemoteSubtitleInfo
                 {
-                    Id = $"{i.Download}:{i.Language}",
+                    Id = $"{i.Download.Replace("/", ",")}:{i.Language}",
                     ProviderName = Name,
                     Name = $"{i.Title} - {i.Version} {(i.HearingImpaired.Count() > 0 ? "- Hearing Impaired" : "")}",
                     Format = "srt",
@@ -389,7 +405,7 @@ namespace Addic7ed
 
                 return movie.Select(i => new RemoteSubtitleInfo
                 {
-                    Id = $"{i.Download}:{i.Language}",
+                    Id = $"{i.Download.Replace("/", ",")}:{i.Language}",
                     ProviderName = Name,
                     Name = $"{i.Title} - {i.Version}",
                     Format = "srt",
@@ -422,23 +438,28 @@ namespace Addic7ed
         public async Task<SubtitleResponse> GetSubtitles(string id, CancellationToken cancellationToken)
         {
             var idParts = id.Split(new[] { ':' }, 2);
-            var download = idParts[0];
+            var download = idParts[0].Replace(",", "/");
             var language = idParts[1];
             var format = "srt";
 
-            var stream = await GetResponse(download, cancellationToken).ConfigureAwait(false);
-            if (string.IsNullOrWhiteSpace(stream.ContentType) ||
-                stream.ContentType.Contains(format))
+            using (var stream = await GetResponse(download, cancellationToken).ConfigureAwait(false))
             {
-                return new SubtitleResponse()
+                if (string.IsNullOrWhiteSpace(stream.ContentType) ||
+                    stream.ContentType.Contains(format))
                 {
-                    Language = language,
-                    Stream = stream.Content,
-                    Format = format
-                };
-            }
+                    var ms = new MemoryStream();
+                    await stream.Content.CopyToAsync(ms);
+                    ms.Position = 0;
+                    return new SubtitleResponse()
+                    {
+                        Language = language,
+                        Stream = ms,
+                        Format = format
+                    };
+                }
 
-            return new SubtitleResponse();
+                return new SubtitleResponse();
+            }
         }
 
         public void Dispose()
