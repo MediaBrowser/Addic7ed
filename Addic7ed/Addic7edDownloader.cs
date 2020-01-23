@@ -146,7 +146,8 @@ namespace Addic7ed
             {
                 Url = $"{_baseUrl}/{url}",
                 CancellationToken = cancellationToken,
-                Referer = _baseUrl
+                Referer = _baseUrl,
+                UserAgent = "Mozilla/5.0 (Windows NT 10.0)"
             }).ConfigureAwait(false);
 
             return res;
@@ -226,7 +227,7 @@ namespace Addic7ed
         private async Task<Dictionary<string, string>> GetShows(CancellationToken cancellationToken)
         {
             var shows = new Dictionary<string, string>();
-            using (var res = await GetResponse("ajax_getShows.php", cancellationToken).ConfigureAwait(false))
+            using (var res = await GetResponse("", cancellationToken).ConfigureAwait(false))
             {
 
                 if (res.StatusCode == HttpStatusCode.OK)
