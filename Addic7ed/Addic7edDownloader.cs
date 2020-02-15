@@ -116,20 +116,20 @@ namespace Addic7ed
             return language;
         }
 
-        private MatchCollection GetMatches(Stream stream, string pattern)
+        private async Task<MatchCollection> GetMatches(Stream stream, string pattern)
         {
             using (var reader = new StreamReader(stream))
             {
-                var text = reader.ReadToEnd().Replace("\n", "").Replace("\t", "");
+                var text = (await reader.ReadToEndAsync().ConfigureAwait(false)).Replace("\n", "").Replace("\t", "");
                 return Regex.Matches(HttpUtility.HtmlDecode(text), pattern);
             }
         }
 
-        private List<MatchCollection> GetMatches(Stream stream, string[] patterns)
+        private async Task<List<MatchCollection>> GetMatches(Stream stream, string[] patterns)
         {
             using (var reader = new StreamReader(stream))
             {
-                var text = reader.ReadToEnd().Replace("\n", "").Replace("\t", "");
+                var text = (await reader.ReadToEndAsync().ConfigureAwait(false)).Replace("\n", "").Replace("\t", "");
 
                 var matches = new List<MatchCollection>();
                 foreach (var pattern in patterns)
@@ -140,17 +140,15 @@ namespace Addic7ed
             }
         }
 
-        private async Task<HttpResponseInfo> GetResponse(string url, CancellationToken cancellationToken)
+        private Task<HttpResponseInfo> GetResponse(string url, CancellationToken cancellationToken)
         {
-            var res = await _httpClient.GetResponse(new HttpRequestOptions
+            return _httpClient.GetResponse(new HttpRequestOptions
             {
                 Url = $"{_baseUrl}/{url}",
                 CancellationToken = cancellationToken,
                 Referer = _baseUrl,
                 UserAgent = "Mozilla/5.0 (Windows NT 10.0)"
-            }).ConfigureAwait(false);
-
-            return res;
+            });
         }
 
         private async Task Login(CancellationToken cancellationToken)
@@ -199,7 +197,7 @@ namespace Addic7ed
                 {
                     using (var reader = new StreamReader(res.Content))
                     {
-                        var content = reader.ReadToEnd();
+                        var content = await reader.ReadToEndAsync().ConfigureAwait(false);
                         if (content.Contains("User <b></b> doesn't exist"))
                         {
                             _logger.Debug("User doesn't exist");
@@ -233,7 +231,7 @@ namespace Addic7ed
                 if (res.StatusCode == HttpStatusCode.OK)
                 {
                     var showPattern = "<option value=\"(\\d+)\" >(.*?)</option>";
-                    var showMatches = GetMatches(res.Content, showPattern);
+                    var showMatches = await GetMatches(res.Content, showPattern).ConfigureAwait(false);
                     foreach (Match show in showMatches)
                     {
                         if (!shows.ContainsKey(show.Groups[2].Value))
@@ -253,12 +251,12 @@ namespace Addic7ed
                            .Where(i => i.Language.Equals(language));
         }
 
-        private IEnumerable<Addic7edResult> ParseEpisode(HttpResponseInfo res)
+        private async Task<IEnumerable<Addic7edResult>> ParseEpisode(HttpResponseInfo res)
         {
             var trPattern = "<tr class=\"epeven completed\">(.*?)</tr>";
             var tdPattern = "<td.*?>(.*?)</td>";
 
-            var trMatches = GetMatches(res.Content, trPattern);
+            var trMatches = await GetMatches(res.Content, trPattern).ConfigureAwait(false);
             var episodes = new List<Addic7edResult>();
             foreach (Match tr in trMatches)
             {
@@ -291,7 +289,7 @@ namespace Addic7ed
             }
             using (var res = await GetResponse($"ajax_loadShow.php?show={id}&season={season}", cancellationToken).ConfigureAwait(false))
             {
-                return ParseEpisode(res);
+                return await ParseEpisode(res).ConfigureAwait(false);
             }
         }
 
@@ -300,7 +298,7 @@ namespace Addic7ed
             using (var res = await GetResponse($"srch.php?search={name}&Submit=Search", cancellationToken).ConfigureAwait(false))
             {
                 var aPattern = "<a href=\"movie/(\\d+)\" debug=\"\\d+\">(.*?)</a><";
-                var aMatches = GetMatches(res.Content, aPattern);
+                var aMatches = await GetMatches(res.Content, aPattern).ConfigureAwait(false);
                 var movies = new Dictionary<string, string>();
                 foreach (Match a in aMatches)
                 {
@@ -323,7 +321,7 @@ namespace Addic7ed
                 var langPattern = "class=\"language\">(.*?)<";
                 var downPattern = "<a class=\"buttonDownload\" href=\"/(.*?)\">";
 
-                var matches = GetMatches(res.Content, new[] { verPattern, langPattern, downPattern, titlePattern });
+                var matches = await GetMatches(res.Content, new[] { verPattern, langPattern, downPattern, titlePattern }).ConfigureAwait(false);
 
                 var results = new List<Addic7edResult>();
                 for (int i = 0; i < matches.FirstOrDefault().Count; i++)
@@ -449,7 +447,7 @@ namespace Addic7ed
                     stream.ContentType.Contains(format))
                 {
                     var ms = new MemoryStream();
-                    await stream.Content.CopyToAsync(ms);
+                    await stream.Content.CopyToAsync(ms).ConfigureAwait(false);
                     ms.Position = 0;
                     return new SubtitleResponse()
                     {
