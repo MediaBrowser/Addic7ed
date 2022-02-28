@@ -109,7 +109,7 @@ namespace Addic7ed
                 var culture = _localizationManager.FindLanguageInfo(language.AsSpan());
                 if (culture != null)
                 {
-                    return culture.ThreeLetterISOLanguageName;
+                    return culture.TwoLetterISOLanguageName;
                 }
             }
 
@@ -248,7 +248,7 @@ namespace Addic7ed
         private IEnumerable<Addic7edResult> GetEpisode(IEnumerable<Addic7edResult> episodes, int? episodeNum, string language)
         {
             return episodes.Where(i => int.Parse(i.Episode) == episodeNum)
-                           .Where(i => i.Language.Equals(language));
+                           .Where(i => string.Equals(i.Language, language, StringComparison.OrdinalIgnoreCase));
         }
 
         private async Task<IEnumerable<Addic7edResult>> ParseEpisode(HttpResponseInfo res)
@@ -351,16 +351,19 @@ namespace Addic7ed
             }
             var results = await ParseMovie(movie, cancellationToken).ConfigureAwait(false);
 
-            return results.Where(i => i.Language.Equals(language));
+            return results.Where(i => string.Equals(i.Language, language, StringComparison.OrdinalIgnoreCase));
         }
 
         public async Task<IEnumerable<RemoteSubtitleInfo>> SearchEpisode(SubtitleSearchRequest request, CancellationToken cancellationToken)
         {
+            var language = request.Language;
+
             if (!string.IsNullOrWhiteSpace(request.SeriesName) &&
                 request.ParentIndexNumber.HasValue &&
                 request.IndexNumber.HasValue &&
-                !string.IsNullOrWhiteSpace(request.Language))
+                !string.IsNullOrWhiteSpace(language))
             {
+                language = NormalizeLanguage(language);
 
                 var showId = await GetShow(request.SeriesName, cancellationToken).ConfigureAwait(false);
                 if (string.IsNullOrWhiteSpace(showId))
@@ -368,7 +371,7 @@ namespace Addic7ed
                     return Array.Empty<RemoteSubtitleInfo>();
                 }
                 var season = await GetSeason(showId, request.ParentIndexNumber, cancellationToken).ConfigureAwait(false);
-                var episode = GetEpisode(season, request.IndexNumber, request.Language);
+                var episode = GetEpisode(season, request.IndexNumber, language);
                 if (episode.Count() == 0)
                 {
                     _logger.Debug("No Episode Found");
@@ -381,7 +384,7 @@ namespace Addic7ed
                     ProviderName = Name,
                     Name = $"{i.Title} - {i.Version} {(i.HearingImpaired.Count() > 0 ? "- Hearing Impaired" : "")}",
                     Format = "srt",
-                    ThreeLetterISOLanguageName = i.Language
+                    Language = i.Language
                 });
 
             }
@@ -391,11 +394,15 @@ namespace Addic7ed
 
         public async Task<IEnumerable<RemoteSubtitleInfo>> SearchMovie(SubtitleSearchRequest request, CancellationToken cancellationToken)
         {
+            var language = request.Language;
+
             if (!string.IsNullOrWhiteSpace(request.Name) &&
                 request.ProductionYear.HasValue &&
-                !string.IsNullOrWhiteSpace(request.Language))
+                !string.IsNullOrWhiteSpace(language))
             {
-                var movie = await GetMovie(request.Name, request.ProductionYear, request.Language, cancellationToken).ConfigureAwait(false);
+                language = NormalizeLanguage(language);
+
+                var movie = await GetMovie(request.Name, request.ProductionYear, language, cancellationToken).ConfigureAwait(false);
                 if (movie.Count() == 0)
                 {
                     _logger.Debug("No Movie Found");
@@ -408,7 +415,7 @@ namespace Addic7ed
                     ProviderName = Name,
                     Name = $"{i.Title} - {i.Version}",
                     Format = "srt",
-                    ThreeLetterISOLanguageName = i.Language
+                    Language = i.Language
                 });
             }
 
