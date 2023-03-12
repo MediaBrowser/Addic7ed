@@ -1,10 +1,10 @@
-﻿define(['loading', 'emby-input', 'emby-button'], function (loading) {
+﻿define(['baseView', 'loading', 'emby-input', 'emby-button', 'emby-scroller'], function (BaseView, loading) {
     'use strict';
 
     function loadPage(page, config) {
 
-        page.querySelector('#txtAddic7edUsername').value = config.Addic7edUsername || '';
-        page.querySelector('#txtAddic7edPassword').value = config.Addic7edPasswordHash || '';
+        page.querySelector('.txtAddic7edUsername').value = config.Addic7edUsername || '';
+        page.querySelector('.txtAddic7edPassword').value = config.Addic7edPasswordHash || '';
 
         loading.hide();
     }
@@ -19,9 +19,9 @@
 
         ApiClient.getNamedConfiguration("addic7ed").then(function (config) {
 
-            config.Addic7edUsername = form.querySelector('#txtAddic7edUsername').value;
+            config.Addic7edUsername = form.querySelector('.txtAddic7edUsername').value;
 
-            var newPassword = form.querySelector('#txtAddic7edPassword').value;
+            var newPassword = form.querySelector('.txtAddic7edPassword').value;
 
             if (newPassword) {
                 config.Addic7edPasswordHash = newPassword;
@@ -47,21 +47,27 @@
         });
     }
 
-    return function (view, params) {
+    function View(view, params) {
+        BaseView.apply(this, arguments);
 
         view.querySelector('form').addEventListener('submit', onSubmit);
+    }
 
-        view.addEventListener('viewshow', function () {
+    Object.assign(View.prototype, BaseView.prototype);
 
-            loading.show();
+    View.prototype.onResume = function (options) {
 
-            var page = this;
+        BaseView.prototype.onResume.apply(this, arguments);
 
-            getConfig().then(function (response) {
+        loading.show();
 
-                loadPage(page, response);
-            });
+        var page = this.view;
+
+        getConfig().then(function (response) {
+
+            loadPage(page, response);
         });
     };
 
+    return View;
 });
