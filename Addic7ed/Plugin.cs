@@ -58,7 +58,6 @@ namespace Addic7ed
                     Name = "addic7ed",
                     EmbeddedResourcePath = GetType().Namespace + ".Configuration.addic7ed.html",
                     EnableInMainMenu = true,
-                    MenuSection = "server",
                     MenuIcon = "closed_caption"
                 },
                 new PluginPageInfo
