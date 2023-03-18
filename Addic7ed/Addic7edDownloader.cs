@@ -15,6 +15,8 @@ using Addic7ed.Models;
 using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Controller.Configuration;
+using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Controller.Security;
 using MediaBrowser.Controller.Subtitles;
@@ -32,6 +34,7 @@ namespace Addic7ed
     {
         private readonly ILogger _logger;
         private readonly IHttpClient _httpClient;
+        private readonly ILibraryManager _libraryManager;
         private readonly IJsonSerializer _jsonSerializer;
 
 
@@ -39,10 +42,11 @@ namespace Addic7ed
         private readonly ILocalizationManager _localizationManager;
         private readonly Version _clientVersion;
 
-        public Addic7edDownloader(ILogger logger, IHttpClient httpClient, IJsonSerializer jsonSerializer, ILocalizationManager localizationManager)
+        public Addic7edDownloader(ILogger logger, IHttpClient httpClient, ILibraryManager libraryManager, IJsonSerializer jsonSerializer, ILocalizationManager localizationManager)
         {
             _logger = logger;
             _httpClient = httpClient;
+            _libraryManager = libraryManager;
             _jsonSerializer = jsonSerializer;
             _localizationManager = localizationManager;
             _clientVersion = Assembly.GetEntryAssembly()?.GetName().Version ?? new Version(1, 0, 0);
@@ -104,7 +108,20 @@ namespace Addic7ed
 
         public async Task<IEnumerable<RemoteSubtitleInfo>> SearchEpisode(SubtitleSearchRequest request, CancellationToken cancellationToken)
         {
-            var tvDbId = request.GetProviderId(MetadataProviders.Tvdb);
+
+            var items = _libraryManager.GetItemList(new InternalItemsQuery
+            {
+                IsSeries = true,
+                Name = request.SeriesName,
+            });
+
+            if (items == null || items.Length == 0)
+            {
+                return Array.Empty<RemoteSubtitleInfo>();
+            }
+
+            var tvDbId = items.First().GetProviderId(MetadataProviders.Tvdb);
+            
             var language = request.Language;
 
             if (string.IsNullOrWhiteSpace(tvDbId) ||
