@@ -151,7 +151,7 @@ namespace Addic7ed
 
                 return episodes.matchingSubtitles.Select(subtitle => new RemoteSubtitleInfo
                 {
-                    Id = $"{subtitle.downloadUri.Replace("/", ",")}:{subtitle.language}",
+                    Id = $"{subtitle.downloadUri.Substring(1).Replace("/", ",")}:{subtitle.language}",
                     ProviderName = Name,
                     Name = $"{subtitle.version}{(subtitle.hearingImpaired ? "- Hearing Impaired" : "")}",
                     Format = "srt",
@@ -194,7 +194,7 @@ namespace Addic7ed
             var download = idParts[0].Replace(",", "/");
             var language = idParts[1];
             var format = "srt";
-
+            
             using var stream = await GetResponse(download, cancellationToken).ConfigureAwait(false);
             if (!string.IsNullOrWhiteSpace(stream.ContentType) &&
                 !stream.ContentType.Contains(format))
