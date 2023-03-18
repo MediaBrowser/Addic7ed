@@ -2,14 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <AssemblyVersion>1.1.1.0</AssemblyVersion>
-    <FileVersion>1.1.1.0</FileVersion>
+    <AssemblyVersion>2.0.0</AssemblyVersion>
+    <FileVersion>2.0.0</FileVersion>
     <LangVersion>8</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Configuration\addic7ed.html" />
-    <None Remove="Configuration\addic7ed.js" />
     <None Remove="thumb.png" />
   </ItemGroup>
 
