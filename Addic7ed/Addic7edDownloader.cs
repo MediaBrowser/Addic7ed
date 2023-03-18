@@ -155,7 +155,8 @@ namespace Addic7ed
                     ProviderName = Name,
                     Name = $"{subtitle.version}{(subtitle.hearingImpaired ? "- Hearing Impaired" : "")}",
                     Format = "srt",
-                    Language = subtitle.language
+                    Language = subtitle.language,
+                    DownloadCount = subtitle.downloadCount
                 });
             }
 
