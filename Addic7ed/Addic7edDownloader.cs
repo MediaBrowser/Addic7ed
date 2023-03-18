@@ -22,6 +22,7 @@ using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Globalization;
 using MediaBrowser.Model.IO;
 using MediaBrowser.Model.Logging;
+using MediaBrowser.Model.Net;
 using MediaBrowser.Model.Providers;
 using MediaBrowser.Model.Serialization;
 
@@ -72,13 +73,20 @@ namespace Addic7ed
 
         private async Task<T?> GetJsonResponse<T>(string url, CancellationToken cancellationToken) where T : class
         {
-            using var response = await GetResponse(url, cancellationToken).ConfigureAwait(false);
-            if (response.StatusCode != HttpStatusCode.OK)
+            try
+            {
+                using var response = await GetResponse(url, cancellationToken).ConfigureAwait(false);
+                if (response.StatusCode != HttpStatusCode.OK)
+                {
+                    return null;
+                }
+                return _jsonSerializer.DeserializeFromStream<T>(response.Content);
+            }
+            catch (HttpException e) when (e.StatusCode == HttpStatusCode.NotFound)
             {
                 return null;
             }
 
-            return _jsonSerializer.DeserializeFromStream<T>(response.Content);
         }
 
         private Task<HttpResponseInfo> GetResponse(string url, CancellationToken cancellationToken)
