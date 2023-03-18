@@ -84,13 +84,13 @@ namespace Addic7ed
                 {
                     return null;
                 }
+
                 return _jsonSerializer.DeserializeFromStream<T>(response.Content);
             }
             catch (HttpException e) when (e.StatusCode == HttpStatusCode.NotFound)
             {
                 return null;
             }
-
         }
 
         private Task<HttpResponseInfo> GetResponse(string url, CancellationToken cancellationToken)
@@ -102,26 +102,26 @@ namespace Addic7ed
                 Referer = _baseUrl,
                 UserAgent = "Emby/" + _clientVersion
             });
-
         }
 
 
         public async Task<IEnumerable<RemoteSubtitleInfo>> SearchEpisode(SubtitleSearchRequest request, CancellationToken cancellationToken)
         {
-
             var items = _libraryManager.GetItemList(new InternalItemsQuery
             {
-                IsSeries = true,
-                Name = request.SeriesName,
+                IncludeItemTypes = new []{"Series"},
+                SearchTerm = request.SeriesName
             });
 
             if (items == null || items.Length == 0)
             {
+                _logger.Info($"Couldn't find the show in library");
                 return Array.Empty<RemoteSubtitleInfo>();
             }
 
             var tvDbId = items.First().GetProviderId(MetadataProviders.Tvdb);
-            
+            _logger.Info($"Getting show for show tvdb: {tvDbId}");
+
             var language = request.Language;
 
             if (string.IsNullOrWhiteSpace(tvDbId) ||
@@ -140,7 +140,7 @@ namespace Addic7ed
                 return Array.Empty<RemoteSubtitleInfo>();
             }
 
-            
+
             foreach (var show in showResponse.shows)
             {
                 var episodes = await GetJsonResponse<SubtitleSearchResponse>($"subtitles/get/{show.id}/{request.ParentIndexNumber}/{request.IndexNumber}/{language}", cancellationToken).ConfigureAwait(false);
@@ -158,6 +158,7 @@ namespace Addic7ed
                     Language = subtitle.language
                 });
             }
+
             return Array.Empty<RemoteSubtitleInfo>();
         }
 
@@ -209,7 +210,6 @@ namespace Addic7ed
                 Stream = ms,
                 Format = format
             };
-
         }
 
         public void Dispose()
