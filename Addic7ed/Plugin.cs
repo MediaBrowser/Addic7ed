@@ -29,43 +29,20 @@ namespace Addic7ed
         /// Gets the name of the plugin
         /// </summary>
         /// <value>The name.</value>
-        public override string Name
-        {
-            get { return "Addic7ed"; }
-        }
+        public override string Name => "Addic7ed";
 
         /// <summary>
         /// Gets the description.
         /// </summary>
         /// <value>The description.</value>
-        public override string Description
-        {
-            get { return "Addic7ed"; }
-        }
+        public override string Description => "Addic7ed";
 
-        private Guid _id = new Guid("CEA173E8-8851-4B3B-B61D-5BEF28B4612B");
-        public override Guid Id
-        {
-            get { return _id; }
-        }
+        private readonly Guid _id = new Guid("CEA173E8-8851-4B3B-B61D-5BEF28B4612B");
+        public override Guid Id => _id;
 
         public IEnumerable<PluginPageInfo> GetPages()
         {
-            return new[]
-            {
-                new PluginPageInfo
-                {
-                    Name = "addic7ed",
-                    EmbeddedResourcePath = GetType().Namespace + ".Configuration.addic7ed.html",
-                    EnableInMainMenu = true,
-                    MenuIcon = "closed_caption"
-                },
-                new PluginPageInfo
-                {
-                    Name = "addic7edjs",
-                    EmbeddedResourcePath = GetType().Namespace + ".Configuration.addic7ed.js"
-                }
-            };
+            return Array.Empty<PluginPageInfo>();
         }
 
         public Stream GetThumbImage()
@@ -74,12 +51,6 @@ namespace Addic7ed
             return type.Assembly.GetManifestResourceStream(type.Namespace + ".thumb.png");
         }
 
-        public ImageFormat ThumbImageFormat
-        {
-            get
-            {
-                return ImageFormat.Jpg;
-            }
-        }
+        public ImageFormat ThumbImageFormat => ImageFormat.Jpg;
     }
 }
